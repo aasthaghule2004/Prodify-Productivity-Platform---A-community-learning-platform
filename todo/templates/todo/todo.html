@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .todo-layout {
+        max-width: 760px;
+        margin: 0 auto;
+    }
+
+    .todo-card {
+        padding: 22px;
+    }
+
+    .todo-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .todo-header h2 {
+        margin: 0;
+    }
+
+    .todo-header p {
+        margin: 4px 0 0;
+        color: var(--muted);
+    }
+
+    .progress {
+        --progress: 0;
+        width: 74px;
+        height: 74px;
+        border-radius: 50%;
+        background: conic-gradient(var(--brand) calc(var(--progress) * 1%), rgba(255, 255, 255, 0.14) 0);
+        position: relative;
+        display: grid;
+        place-items: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+    }
+
+    .progress::after {
+        content: "";
+        position: absolute;
+        width: 58px;
+        height: 58px;
+        border-radius: 50%;
+        background: rgba(3, 14, 22, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .progress span {
+        position: relative;
+        z-index: 1;
+    }
+
+    .add-form {
+        display: grid;
+        grid-template-columns: 1fr 54px;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .add-btn {
+        border-radius: 10px;
+        border: none;
+        font-size: 1.5rem;
+        background: linear-gradient(135deg, var(--brand), #09c8aa);
+        color: #00342b;
+        cursor: pointer;
+    }
+
+    .task-list {
+        display: grid;
+        gap: 10px;
+    }
+
+    .task-item {
+        border-radius: 12px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .task-main {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .task-dot {
+        width: 8px;
+        height: 32px;
+        border-radius: 999px;
+        background: linear-gradient(var(--brand), var(--brand-2));
+    }
+
+    .task-title {
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .task-item.completed .task-title {
+        text-decoration: line-through;
+        opacity: 0.55;
+    }
+
+    .task-actions {
+        display: flex;
+        gap: 6px;
+    }
+
+    .icon-btn {
+        text-decoration: none;
+        width: 34px;
+        height: 34px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        display: grid;
+        place-items: center;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.08);
+        cursor: pointer;
+    }
+
+    .icon-btn.delete {
+        border-color: rgba(255, 93, 122, 0.45);
+        color: #ffdce3;
+        background: rgba(255, 93, 122, 0.14);
+    }
+</style>
+
+<div class="page-wrap todo-layout">
+    <div class="panel todo-card">
+        <div class="todo-header">
+            <div>
+                <h2>Hey, {{ request.user.username|title }}</h2>
+                <p>Plan clearly and finish your priorities.</p>
+            </div>
+            <div class="progress" id="progressCircle">
+                <span>{{ completed_count }}/{{ total_count }}</span>
+            </div>
+        </div>
+
+        <form method="POST" class="add-form" id="addTaskForm">
+            {% csrf_token %}
+            <input type="text" name="title" placeholder="Add a new task..." required>
+            <button class="add-btn" type="submit">+</button>
+        </form>
+
+        <div class="task-list">
+            {% for task in tasks %}
+                <div class="task-item {% if task.completed %}completed{% endif %}">
+                    <div class="task-main">
+                        <div class="task-dot"></div>
+                        <p class="task-title">{{ task.title }}</p>
+                    </div>
+                    <div class="task-actions">
+                        <button type="button" class="icon-btn task-action-btn" data-url="{% url 'complete' task.id %}" title="Complete">OK</button>
+                        <button type="button" class="icon-btn delete task-action-btn" data-url="{% url 'delete' task.id %}" title="Delete">X</button>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="task-item">
+                    <p class="task-title">No tasks yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== "") {
+                var cookies = document.cookie.split(";");
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function postAndRefresh(url, body) {
+            return fetch(url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    "X-CSRFToken": getCookie("csrftoken"),
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                body: body || ""
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Request failed");
+                }
+                return response.json();
+            }).then(function () {
+                window.location.reload();
+            }).catch(function (error) {
+                console.error(error);
+            });
+        }
+
+        var total = parseInt("{{ total_count|default:0 }}", 10);
+        var completed = parseInt("{{ completed_count|default:0 }}", 10);
+        var percent = total > 0 ? (completed / total) * 100 : 0;
+        var circle = document.getElementById("progressCircle");
+        if (circle) {
+            circle.style.setProperty("--progress", percent);
+        }
+
+        var addTaskForm = document.getElementById("addTaskForm");
+        if (addTaskForm) {
+            addTaskForm.addEventListener("submit", function (event) {
+                event.preventDefault();
+                var formData = new FormData(addTaskForm);
+                var params = new URLSearchParams(formData).toString();
+                postAndRefresh(addTaskForm.getAttribute("action") || window.location.pathname, params);
+            });
+        }
+
+        var actionButtons = document.querySelectorAll(".task-action-btn");
+        actionButtons.forEach(function (btn) {
+            btn.addEventListener("click", function () {
+                var url = btn.getAttribute("data-url");
+                if (url) {
+                    postAndRefresh(url);
+                }
+            });
+        });
+    })();
+</script>
+{% endblock %}

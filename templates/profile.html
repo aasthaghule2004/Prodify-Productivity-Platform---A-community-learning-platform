@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .profile-wrap {
+        max-width: 720px;
+        margin: 0 auto;
+    }
+
+    .profile-card {
+        padding: 22px;
+    }
+
+    .profile-title {
+        margin: 0 0 16px;
+    }
+
+    .profile-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    }
+
+    .profile-row:last-child {
+        border-bottom: 0;
+    }
+
+    .label {
+        color: var(--muted);
+    }
+</style>
+
+<div class="page-wrap profile-wrap">
+    <div class="panel profile-card">
+        <h1 class="profile-title">Profile</h1>
+        <div class="profile-row">
+            <span class="label">Username</span>
+            <strong>{{ user.username }}</strong>
+        </div>
+        <div class="profile-row">
+            <span class="label">Email</span>
+            <strong>{{ user.email|default:"Not set" }}</strong>
+        </div>
+        <div class="profile-row">
+            <span class="label">Joined</span>
+            <strong>{{ user.date_joined|date:"M d, Y" }}</strong>
+        </div>
+    </div>
+</div>
+{% endblock %}

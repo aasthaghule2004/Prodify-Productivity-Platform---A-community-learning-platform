@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .folders-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 14px;
+    }
+
+    .folders-head h2 {
+        margin: 0;
+    }
+
+    .folder-form {
+        display: flex;
+        gap: 8px;
+        width: min(420px, 100%);
+    }
+
+    .folder-form input {
+        flex: 1;
+    }
+
+    .folder-card {
+        text-decoration: none;
+        color: var(--text);
+        padding: 18px;
+        border-radius: 14px;
+    }
+
+    .folder-card h3 {
+        margin: 0 0 6px;
+    }
+
+    .folder-card p {
+        margin: 0;
+        color: var(--muted);
+    }
+</style>
+
+<div class="page-wrap">
+    <div class="folders-head">
+        <h2>My Study Folders</h2>
+        <form method="POST" class="folder-form">
+            {% csrf_token %}
+            <input type="text" name="folder_name" placeholder="Create new folder" required>
+            <button type="submit" class="btn btn-brand">Create</button>
+        </form>
+    </div>
+
+    <div class="grid-auto">
+        {% for folder in folders %}
+            <a href="{% url 'folder_detail' folder.id %}" class="panel folder-card fade-link">
+                <h3>{{ folder.name }}</h3>
+                <p>Open folder</p>
+            </a>
+        {% empty %}
+            <div class="panel folder-card">
+                <h3>No folders yet</h3>
+                <p>Create your first folder to upload study PDFs.</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

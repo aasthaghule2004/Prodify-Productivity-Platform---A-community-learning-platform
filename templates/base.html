@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prodify</title>
+    {% load static %}
+    <script>
+        (function () {
+            var saved = localStorage.getItem("prodify-theme");
+            var theme = saved || "dark";
+            document.documentElement.setAttribute("data-theme", theme);
+        })();
+    </script>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+    <div class="navbar">
+        <div class="logo">
+            <a href="{% url 'home' %}">Prodify</a>
+        </div>
+        <div class="nav-links">
+            <button type="button" id="themeToggle" class="nav-btn nav-btn-outline theme-toggle">Light Mode</button>
+            {% if user.is_authenticated %}
+                <div class="profile-dropdown" id="profileDropdown">
+                    <button type="button" class="profile-trigger" id="profileTrigger">{{ user.username }}</button>
+                    <div class="dropdown-menu">
+                        <a href="{% url 'profile' %}">Profile</a>
+                        <a href="{% url 'dashboard' %}">Dashboard</a>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit" class="menu-btn nav-btn-danger">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{% url 'login' %}" class="nav-btn nav-btn-outline">Login</a>
+                <a href="{% url 'register' %}" class="nav-btn nav-btn-solid">Register</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        (function () {
+            var root = document.documentElement;
+            var themeToggle = document.getElementById("themeToggle");
+            function syncThemeButton() {
+                if (!themeToggle) {
+                    return;
+                }
+                var current = root.getAttribute("data-theme") || "dark";
+                themeToggle.textContent = current === "light" ? "Dark Mode" : "Light Mode";
+            }
+
+            if (themeToggle) {
+                themeToggle.addEventListener("click", function () {
+                    var current = root.getAttribute("data-theme") || "dark";
+                    var next = current === "light" ? "dark" : "light";
+                    root.setAttribute("data-theme", next);
+                    localStorage.setItem("prodify-theme", next);
+                    syncThemeButton();
+                    window.dispatchEvent(new CustomEvent("themechange", { detail: { theme: next } }));
+                });
+                syncThemeButton();
+            }
+
+            var dropdown = document.getElementById("profileDropdown");
+            var trigger = document.getElementById("profileTrigger");
+            if (dropdown && trigger) {
+                trigger.addEventListener("click", function () {
+                    dropdown.classList.toggle("open");
+                });
+                document.addEventListener("click", function (event) {
+                    if (!dropdown.contains(event.target)) {
+                        dropdown.classList.remove("open");
+                    }
+                });
+            }
+        })();
+    </script>
+</body>
+</html>

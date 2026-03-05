@@ -1,0 +1,373 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .folder-detail-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .folder-detail-head h2 {
+        margin: 0;
+    }
+
+    .upload-form {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        margin-bottom: 14px;
+    }
+
+    .detail-grid {
+        display: grid;
+        grid-template-columns: minmax(260px, 330px) 1fr;
+        gap: 14px;
+    }
+
+    .materials {
+        padding: 12px;
+        max-height: 68vh;
+        overflow: auto;
+    }
+
+    .material-item {
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.05);
+        padding: 10px;
+        margin-bottom: 8px;
+    }
+
+    .material-item strong a {
+        color: var(--text);
+        text-decoration: none;
+    }
+
+    .material-actions {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+        flex-wrap: wrap;
+    }
+
+    .viewer {
+        padding: 12px;
+    }
+
+    .viewer-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 10px;
+    }
+
+    .viewer-head h3 {
+        margin: 0;
+    }
+
+    .read-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .timer-pill {
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-weight: 700;
+        min-width: 112px;
+        text-align: center;
+    }
+
+    .viewer iframe {
+        width: 100%;
+        min-height: 68vh;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: white;
+    }
+
+    .read-mode .materials {
+        display: none;
+    }
+
+    .read-mode .detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .read-mode .viewer iframe {
+        min-height: 84vh;
+    }
+
+    @media (max-width: 920px) {
+        .upload-form {
+            grid-template-columns: 1fr;
+        }
+        .detail-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="page-wrap" id="studyPage">
+    <div class="folder-detail-head">
+        <h2>{{ folder.name }}</h2>
+        <a href="{% url 'folders' %}" class="btn btn-muted">Back to folders</a>
+    </div>
+
+    <form method="POST" enctype="multipart/form-data" class="upload-form">
+        {% csrf_token %}
+        <input type="text" name="title" placeholder="PDF title" required>
+        <input type="file" name="pdf_file" accept="application/pdf" required>
+        <button type="submit" class="btn btn-brand">Upload</button>
+    </form>
+
+    <div class="detail-grid">
+        <div class="panel materials">
+            {% if materials %}
+                {% for material in materials %}
+                    <div class="material-item">
+                        <strong>
+                            <a href="?pdf={{ material.id }}">{{ material.title }}</a>
+                            {% if material.is_pinned %}[Pinned]{% endif %}
+                        </strong>
+                        <div class="material-actions">
+                            <a href="?pdf={{ material.id }}&read=1" class="btn btn-brand">Read Mode</a>
+                            <a href="{% url 'toggle_pin' material.id %}" class="btn btn-muted">
+                                {% if material.is_pinned %}Unpin{% else %}Pin{% endif %}
+                            </a>
+                            <a href="{% url 'delete_material' material.id %}" class="btn btn-danger">Delete</a>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="material-item">No PDFs uploaded yet.</div>
+            {% endif %}
+        </div>
+
+        <div class="panel viewer">
+            {% if selected_pdf %}
+                <div class="viewer-head">
+                    <h3>{{ selected_pdf.title }}</h3>
+                    <div class="read-controls">
+                        <select id="plannedMinutes">
+                            <option value="15">15 min</option>
+                            <option value="25" selected>25 min</option>
+                            <option value="45">45 min</option>
+                            <option value="60">60 min</option>
+                        </select>
+                        <button id="readModeBtn" type="button" class="btn btn-brand">Read Mode</button>
+                        <button id="exitReadModeBtn" type="button" class="btn btn-muted" style="display:none;">Exit Read Mode</button>
+                        <div id="readTimer" class="timer-pill" style="display:none;">00:00</div>
+                    </div>
+                </div>
+                <iframe src="{{ selected_pdf.pdf_file.url }}"></iframe>
+            {% else %}
+                <p>Select a PDF from the left panel to view it here.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if selected_pdf %}
+<script>
+    (function () {
+        var page = document.getElementById("studyPage");
+        var readModeBtn = document.getElementById("readModeBtn");
+        var exitBtn = document.getElementById("exitReadModeBtn");
+        var timerEl = document.getElementById("readTimer");
+        var minutesSelect = document.getElementById("plannedMinutes");
+
+        var startUrl = "{% url 'start_session' %}";
+        var updateUrl = "{% url 'update_session' %}";
+        var pdfTitle = "{{ selected_pdf.title|escapejs }}";
+        var shouldAutoStart = "{{ request.GET.read|default:'' }}" === "1";
+
+        var sessionId = null;
+        var sessionStartMs = null;
+        var plannedSeconds = 0;
+        var timerTick = null;
+        var ended = false;
+
+        function getCookie(name) {
+            var cookieValue = null;
+            if (document.cookie && document.cookie !== "") {
+                var cookies = document.cookie.split(";");
+                for (var i = 0; i < cookies.length; i++) {
+                    var cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function formatElapsed(totalSeconds) {
+            var mins = Math.floor(totalSeconds / 60);
+            var secs = totalSeconds % 60;
+            return String(mins).padStart(2, "0") + ":" + String(secs).padStart(2, "0");
+        }
+
+        function stopTicker() {
+            if (timerTick) {
+                clearInterval(timerTick);
+                timerTick = null;
+            }
+        }
+
+        function startTicker() {
+            stopTicker();
+            timerTick = setInterval(function () {
+                if (!sessionStartMs || !timerEl) {
+                    return;
+                }
+                var elapsed = Math.floor((Date.now() - sessionStartMs) / 1000);
+                timerEl.textContent = formatElapsed(elapsed);
+            }, 1000);
+        }
+
+        function updateSession(isCompleted) {
+            if (!sessionId || ended) {
+                return Promise.resolve();
+            }
+            ended = true;
+            var elapsed = Math.max(0, Math.floor((Date.now() - sessionStartMs) / 1000));
+            stopTicker();
+            return fetch(updateUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    elapsed_seconds: elapsed,
+                    is_completed: !!isCompleted
+                })
+            }).catch(function () {
+                return null;
+            });
+        }
+
+        function setReadModeUI(active) {
+            if (!page) {
+                return;
+            }
+            if (active) {
+                page.classList.add("read-mode");
+                if (timerEl) {
+                    timerEl.style.display = "block";
+                }
+                if (exitBtn) {
+                    exitBtn.style.display = "inline-flex";
+                }
+                if (readModeBtn) {
+                    readModeBtn.style.display = "none";
+                }
+            } else {
+                page.classList.remove("read-mode");
+                if (timerEl) {
+                    timerEl.style.display = "none";
+                }
+                if (exitBtn) {
+                    exitBtn.style.display = "none";
+                }
+                if (readModeBtn) {
+                    readModeBtn.style.display = "inline-flex";
+                }
+            }
+        }
+
+        function startReadMode() {
+            if (sessionId) {
+                return;
+            }
+            var plannedMinutes = parseInt(minutesSelect ? minutesSelect.value : "25", 10);
+            if (!plannedMinutes || plannedMinutes < 1) {
+                plannedMinutes = 25;
+            }
+            plannedSeconds = plannedMinutes * 60;
+
+            fetch(startUrl, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({
+                    planned_minutes: plannedMinutes,
+                    task_name: "Reading: " + pdfTitle
+                })
+            }).then(function (response) {
+                if (!response.ok) {
+                    throw new Error("Failed to start session.");
+                }
+                return response.json();
+            }).then(function (data) {
+                sessionId = data.session_id;
+                sessionStartMs = Date.now();
+                ended = false;
+                if (timerEl) {
+                    timerEl.textContent = "00:00";
+                }
+                setReadModeUI(true);
+                startTicker();
+            }).catch(function (error) {
+                console.error(error);
+            });
+        }
+
+        if (readModeBtn) {
+            readModeBtn.addEventListener("click", function () {
+                startReadMode();
+            });
+        }
+
+        if (exitBtn) {
+            exitBtn.addEventListener("click", function () {
+                var elapsed = sessionStartMs ? Math.floor((Date.now() - sessionStartMs) / 1000) : 0;
+                updateSession(elapsed >= plannedSeconds).finally(function () {
+                    setReadModeUI(false);
+                    sessionId = null;
+                    sessionStartMs = null;
+                });
+            });
+        }
+
+        window.addEventListener("beforeunload", function () {
+            if (!sessionId || ended) {
+                return;
+            }
+            var elapsed = Math.max(0, Math.floor((Date.now() - sessionStartMs) / 1000));
+            fetch(updateUrl, {
+                method: "POST",
+                keepalive: true,
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": getCookie("csrftoken")
+                },
+                body: JSON.stringify({
+                    session_id: sessionId,
+                    elapsed_seconds: elapsed,
+                    is_completed: elapsed >= plannedSeconds
+                })
+            });
+        });
+
+        if (shouldAutoStart) {
+            startReadMode();
+        }
+    })();
+</script>
+{% endif %}
+{% endblock %}

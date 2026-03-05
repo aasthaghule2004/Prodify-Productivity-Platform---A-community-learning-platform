@@ -1,0 +1,251 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .landing {
+        position: relative;
+        text-align: center;
+        overflow: hidden;
+    }
+
+    .landing::before {
+        content: "";
+        position: absolute;
+        left: 50%;
+        top: 18px;
+        width: min(760px, 86vw);
+        height: 320px;
+        transform: translateX(-50%);
+        border-radius: 999px;
+        pointer-events: none;
+        background: radial-gradient(circle, rgba(22, 224, 190, 0.18), rgba(22, 224, 190, 0));
+        filter: blur(10px);
+    }
+
+    .hero {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 76px 12px 38px;
+        position: relative;
+    }
+
+    .hero-chip {
+        display: inline-block;
+        margin-bottom: 14px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .hero h1 {
+        font-size: clamp(2.2rem, 5.4vw, 4.1rem);
+        margin: 0 0 12px;
+        font-weight: 800;
+        line-height: 1.07;
+    }
+
+    .hero p {
+        margin: 0 auto 24px;
+        max-width: 620px;
+        color: var(--muted);
+        line-height: 1.65;
+        font-size: 1rem;
+    }
+
+    .hero-cta {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .hero-cta .btn {
+        min-width: 170px;
+        min-height: 44px;
+    }
+
+    .section-head {
+        margin: 4px auto 18px;
+        max-width: 1120px;
+        text-align: left;
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 12px;
+    }
+
+    .section-head h2 {
+        margin: 0;
+        font-size: 1.45rem;
+    }
+
+    .section-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+    }
+
+    .tool-grid {
+        margin-bottom: 18px;
+    }
+
+    .feature-card {
+        text-decoration: none;
+        color: var(--text);
+        min-height: 172px;
+        padding: 20px 18px;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+        background: linear-gradient(140deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+        backdrop-filter: blur(10px);
+        box-shadow: 0 14px 26px rgba(0, 0, 0, 0.18);
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: left;
+        transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 22px 34px rgba(0, 0, 0, 0.24);
+        border-color: rgba(22, 224, 190, 0.5);
+    }
+
+    .feature-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: grid;
+        place-items: center;
+        font-size: 1rem;
+        color: #d4fff7;
+        background: linear-gradient(135deg, rgba(22, 224, 190, 0.5), rgba(89, 162, 255, 0.38));
+    }
+
+    .feature-card h3 {
+        margin: 0 0 8px;
+        font-size: 1.42rem;
+    }
+
+    .feature-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.55;
+    }
+
+    .benefit-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    .benefit-card {
+        padding: 16px;
+        text-align: left;
+    }
+
+    .benefit-card h4 {
+        margin: 0 0 6px;
+        font-size: 1.02rem;
+    }
+
+    .benefit-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+    }
+
+    @media (max-width: 860px) {
+        .hero {
+            padding-top: 56px;
+        }
+
+        .hero-cta {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .hero-cta .btn {
+            width: 100%;
+            min-width: 0;
+        }
+
+        .section-head {
+            flex-direction: column;
+            align-items: flex-start;
+            text-align: left;
+        }
+
+        .benefit-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .feature-card {
+            min-height: 150px;
+        }
+    }
+</style>
+
+<div class="page-wrap landing">
+    <section class="hero">
+        <span class="hero-chip">One workspace for students</span>
+        <h1>Focus. Organize. Achieve.</h1>
+        <p>Your all-in-one productivity platform for study, execution, and measurable progress.</p>
+        <div class="hero-cta">
+            <a href="{% url 'todo' %}" class="btn btn-brand fade-link">Get Started</a>
+            <a href="{% url 'dashboard' %}" class="btn btn-muted fade-link">Open Dashboard</a>
+        </div>
+    </section>
+
+    <section class="section-head">
+        <h2>Core Tools</h2>
+        <p>Jump straight into your daily flow.</p>
+    </section>
+
+    <section class="grid-auto tool-grid">
+        <a href="{% url 'todo' %}" class="feature-card fade-link">
+            <span class="feature-icon">TL</span>
+            <h3>Todo</h3>
+            <p>Track tasks, complete faster, and keep momentum.</p>
+        </a>
+        <a href="{% url 'folders' %}" class="feature-card fade-link">
+            <span class="feature-icon">NT</span>
+            <h3>Notes</h3>
+            <p>Organize study materials and your important PDFs.</p>
+        </a>
+        <a href="{% url 'timer' %}" class="feature-card fade-link">
+            <span class="feature-icon">TM</span>
+            <h3>Timer</h3>
+            <p>Run focused sessions that feed real dashboard data.</p>
+        </a>
+    </section>
+
+    <section class="section-head">
+        <h2>Why Prodify</h2>
+        <p>Built for consistency, not just motivation.</p>
+    </section>
+
+    <section class="benefit-grid">
+        <div class="panel benefit-card">
+            <h4>Action First</h4>
+            <p>Start with clear tasks and move from planning to execution quickly.</p>
+        </div>
+        <div class="panel benefit-card">
+            <h4>Measurable Progress</h4>
+            <p>Every focused session and completed task contributes to your dashboard insights.</p>
+        </div>
+        <div class="panel benefit-card">
+            <h4>Simple Workflow</h4>
+            <p>Todo, notes, timer, and analytics stay connected in one clean interface.</p>
+        </div>
+    </section>
+</div>
+{% endblock %}

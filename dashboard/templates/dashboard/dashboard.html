@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .dashboard-header h1 {
+        margin: 0;
+    }
+
+    .dashboard-header p {
+        margin: 6px 0 0;
+        color: var(--muted);
+    }
+
+    .filter-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .stat-card,
+    .chart-card {
+        padding: 16px;
+    }
+
+    .stat-card h4 {
+        margin: 0;
+        color: var(--muted);
+    }
+
+    .stat-value {
+        margin-top: 8px;
+        font-size: 2rem;
+        font-weight: 800;
+    }
+
+    .charts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 16px;
+    }
+
+    .chart-card {
+        min-height: 320px;
+    }
+
+    .chart-title {
+        margin: 0 0 12px;
+    }
+
+    .chart-box {
+        height: 240px;
+    }
+</style>
+
+<div class="page-wrap">
+    <div class="dashboard-header">
+        <div>
+            <h1>Dashboard</h1>
+            <p>Insights from your real focus sessions and completed tasks.</p>
+        </div>
+        <div class="filter-row">
+            <select id="timeUnitSelect">
+                <option value="hours" selected>Hours</option>
+                <option value="minutes">Minutes</option>
+            </select>
+            <select id="rangeSelect">
+                <option value="day">Day</option>
+                <option value="week" selected>Week</option>
+                <option value="month">Month</option>
+            </select>
+            <input id="datePicker" type="date" value="{{ default_date }}">
+        </div>
+    </div>
+
+    <div class="grid-auto" style="margin-bottom: 16px;">
+        <div class="panel stat-card">
+            <h4>Study Hours</h4>
+            <div class="stat-value" id="totalHours">0.00</div>
+        </div>
+        <div class="panel stat-card">
+            <h4>Tasks Accomplished</h4>
+            <div class="stat-value" id="totalTasks">0</div>
+        </div>
+        <div class="panel stat-card">
+            <h4>Avg Hours / Slot</h4>
+            <div class="stat-value" id="avgHours">0.00</div>
+        </div>
+    </div>
+
+    <div class="charts">
+        <div class="panel chart-card">
+            <h3 class="chart-title">Study Hours</h3>
+            <div class="chart-box">
+                <canvas id="studyChart"></canvas>
+            </div>
+        </div>
+        <div class="panel chart-card">
+            <h3 class="chart-title">Tasks Accomplished</h3>
+            <div class="chart-box">
+                <canvas id="tasksChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    const metricsUrl = "{% url 'dashboard_metrics' %}";
+    const rangeSelect = document.getElementById("rangeSelect");
+    const datePicker = document.getElementById("datePicker");
+    const timeUnitSelect = document.getElementById("timeUnitSelect");
+    const totalHours = document.getElementById("totalHours");
+    const totalTasks = document.getElementById("totalTasks");
+    const avgHours = document.getElementById("avgHours");
+    let studyChart;
+    let tasksChart;
+    let isLoading = false;
+    let initialized = false;
+    let latestMetrics = null;
+
+    async function loadMetrics() {
+        if (isLoading) {
+            return;
+        }
+        isLoading = true;
+        const range = rangeSelect.value;
+        const date = datePicker.value;
+        try {
+            const response = await fetch(`${metricsUrl}?range=${encodeURIComponent(range)}&date=${encodeURIComponent(date)}`);
+            if (!response.ok) {
+                throw new Error("Failed to load dashboard metrics.");
+            }
+            const data = await response.json();
+            latestMetrics = data;
+            updateDashboardView(data);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            isLoading = false;
+        }
+    }
+
+    function updateDashboardView(data) {
+        const useMinutes = timeUnitSelect.value === "minutes";
+        const unitLabel = useMinutes ? "min" : "hrs";
+        const totalValue = useMinutes ? (Number(data.totals.hours) * 60) : Number(data.totals.hours);
+        const avgValue = useMinutes ? (Number(data.totals.avg_daily_hours) * 60) : Number(data.totals.avg_daily_hours);
+        const studySeries = useMinutes
+            ? data.study_hours.map(function (h) { return Number((h * 60).toFixed(2)); })
+            : data.study_hours.map(function (h) { return Number(h); });
+
+        totalHours.textContent = `${totalValue.toFixed(2)} ${unitLabel}`;
+        totalTasks.textContent = data.totals.tasks;
+        avgHours.textContent = `${avgValue.toFixed(2)} ${unitLabel}`;
+        renderCharts(data.labels, studySeries, data.tasks_done, useMinutes ? "Minutes" : "Hours");
+    }
+
+    function getChartColors() {
+        const theme = document.documentElement.getAttribute("data-theme") || "dark";
+        if (theme === "light") {
+            return {
+                tick: "rgba(11, 36, 56, 0.72)",
+                grid: "rgba(11, 36, 56, 0.12)",
+                legend: "rgba(11, 36, 56, 0.88)"
+            };
+        }
+        return {
+            tick: "rgba(232, 242, 250, 0.72)",
+            grid: "rgba(232, 242, 250, 0.12)",
+            legend: "rgba(232, 242, 250, 0.9)"
+        };
+    }
+
+    function renderCharts(labels, studyHours, tasksDone, studyLabel) {
+        const chartColors = getChartColors();
+        if (studyChart) {
+            studyChart.destroy();
+        }
+        if (tasksChart) {
+            tasksChart.destroy();
+        }
+
+        studyChart = new Chart(document.getElementById("studyChart"), {
+            type: "line",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: studyLabel,
+                    data: studyHours,
+                    borderColor: "#16e0be",
+                    backgroundColor: "rgba(22, 224, 190, 0.16)",
+                    fill: true,
+                    tension: 0.35
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        labels: { color: chartColors.legend }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: chartColors.tick },
+                        grid: { color: chartColors.grid }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: chartColors.tick },
+                        grid: { color: chartColors.grid }
+                    }
+                }
+            }
+        });
+
+        tasksChart = new Chart(document.getElementById("tasksChart"), {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: "Tasks",
+                    data: tasksDone,
+                    backgroundColor: "rgba(89, 162, 255, 0.7)"
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                plugins: {
+                    legend: {
+                        labels: { color: chartColors.legend }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: chartColors.tick },
+                        grid: { color: chartColors.grid }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0, color: chartColors.tick },
+                        grid: { color: chartColors.grid }
+                    }
+                }
+            }
+        });
+    }
+
+    function initDashboard() {
+        if (initialized) {
+            return;
+        }
+        initialized = true;
+        rangeSelect.addEventListener("change", loadMetrics);
+        datePicker.addEventListener("change", loadMetrics);
+        timeUnitSelect.addEventListener("change", function () {
+            if (latestMetrics) {
+                updateDashboardView(latestMetrics);
+            }
+        });
+        window.addEventListener("themechange", function () {
+            if (latestMetrics) {
+                updateDashboardView(latestMetrics);
+            }
+        });
+        loadMetrics();
+    }
+
+    initDashboard();
+</script>
+{% endblock %}

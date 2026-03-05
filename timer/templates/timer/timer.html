@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+    .timer-wrap {
+        max-width: 560px;
+        margin: 0 auto;
+    }
+
+    .timer-card {
+        padding: 26px;
+        text-align: center;
+    }
+
+    .timer-card h2 {
+        margin-top: 0;
+    }
+
+    .timer-inputs {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 14px;
+    }
+
+    .timer-circle {
+        width: 220px;
+        height: 220px;
+        margin: 14px auto;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 2.2rem;
+        font-weight: 800;
+        border: 10px solid rgba(22, 224, 190, 0.75);
+        box-shadow: inset 0 0 24px rgba(22, 224, 190, 0.22);
+    }
+
+    #quote {
+        color: var(--muted);
+        min-height: 24px;
+    }
+
+    .timer-actions {
+        display: flex;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+</style>
+
+<div class="page-wrap timer-wrap">
+    <div class="panel timer-card">
+        <h2>Focus Timer</h2>
+        <div class="timer-inputs">
+            <input type="text" id="taskName" placeholder="Enter task name">
+            <select id="timeSelect">
+                {% for i in time_options %}
+                    <option value="{{ i }}">{{ i }} Minutes</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="timer-circle">
+            <span id="time">00:00</span>
+        </div>
+
+        <p id="quote">Stay focused and never give up.</p>
+
+        <div class="timer-actions">
+            <button class="btn btn-brand" onclick="startTimer()">Start</button>
+            <button class="btn btn-muted" onclick="pauseTimer()">Pause</button>
+            <button class="btn btn-danger" onclick="resetTimer()">Reset</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let timeLeft = 0;
+let totalSeconds = 0;
+let timer = null;
+let quoteInterval = null;
+let syncInterval = null;
+let currentSessionId = null;
+
+const startUrl = "{% url 'start_session' %}";
+const updateUrl = "{% url 'update_session' %}";
+
+const quotes = [
+    "Push yourself, because no one else will.",
+    "Small progress is still progress.",
+    "Focus on the goal, not the obstacle.",
+    "Discipline beats motivation.",
+    "You are capable of amazing things.",
+    "Success starts with self-belief.",
+    "One step at a time.",
+    "Consistency is key."
+];
+
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+        return parts.pop().split(";").shift();
+    }
+    return "";
+}
+
+function updateDisplay() {
+    const minutes = Math.floor(timeLeft / 60);
+    const seconds = timeLeft % 60;
+    document.getElementById("time").innerText =
+        String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+}
+
+function changeQuote() {
+    const random = Math.floor(Math.random() * quotes.length);
+    document.getElementById("quote").innerText = quotes[random];
+}
+
+function getElapsedSeconds() {
+    return Math.max(totalSeconds - timeLeft, 0);
+}
+
+async function createSessionIfMissing() {
+    if (currentSessionId !== null) {
+        return;
+    }
+    const taskName = document.getElementById("taskName").value.trim();
+    const plannedMinutes = Number(document.getElementById("timeSelect").value || 25);
+    const response = await fetch(startUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+            task_name: taskName,
+            planned_minutes: plannedMinutes,
+        }),
+    });
+    if (response.ok) {
+        const payload = await response.json();
+        currentSessionId = payload.session_id;
+    }
+}
+
+async function syncSession(isCompleted = false) {
+    if (!currentSessionId) {
+        return;
+    }
+    await fetch(updateUrl, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+        },
+        body: JSON.stringify({
+            session_id: currentSessionId,
+            elapsed_seconds: getElapsedSeconds(),
+            is_completed: isCompleted,
+        }),
+    });
+}
+
+async function startTimer() {
+    if (timer) {
+        return;
+    }
+
+    const selectedMinutes = Number(document.getElementById("timeSelect").value || 25);
+    if (timeLeft === 0) {
+        totalSeconds = selectedMinutes * 60;
+        timeLeft = totalSeconds;
+    }
+
+    await createSessionIfMissing();
+    await syncSession(false);
+
+    timer = setInterval(async () => {
+        if (timeLeft > 0) {
+            timeLeft--;
+            updateDisplay();
+        } else {
+            clearInterval(timer);
+            clearInterval(quoteInterval);
+            clearInterval(syncInterval);
+            timer = null;
+            quoteInterval = null;
+            syncInterval = null;
+            await syncSession(true);
+            currentSessionId = null;
+            alert("Session complete");
+        }
+    }, 1000);
+
+    quoteInterval = setInterval(changeQuote, 30000);
+    syncInterval = setInterval(() => {
+        syncSession(false);
+    }, 15000);
+}
+
+async function pauseTimer() {
+    clearInterval(timer);
+    clearInterval(quoteInterval);
+    clearInterval(syncInterval);
+    timer = null;
+    quoteInterval = null;
+    syncInterval = null;
+    await syncSession(false);
+}
+
+async function resetTimer() {
+    await pauseTimer();
+    timeLeft = 0;
+    totalSeconds = 0;
+    currentSessionId = null;
+    updateDisplay();
+    document.getElementById("quote").innerText = "Stay focused and never give up.";
+}
+
+updateDisplay();
+</script>
+{% endblock %}
