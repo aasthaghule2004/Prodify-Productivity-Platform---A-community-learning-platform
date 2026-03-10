@@ -69,7 +69,7 @@ The goal of the platform is to create a **community-centered learning environmen
 
 ---
 
-# 🏗️ Project Architecture
+# Project Architecture
 
 ```
 Prodify/
@@ -91,7 +91,7 @@ Prodify/
 
 ---
 
-# ⚙️ Installation Guide
+# Installation Guide
 
 ### 1️⃣ Clone the repository
 
@@ -152,7 +152,7 @@ http://127.0.0.1:8000/
 ---
 
 
-# 🔮 Future Improvements
+# Future Improvements
 
 * Friend request system
 * Real-time chat between users
