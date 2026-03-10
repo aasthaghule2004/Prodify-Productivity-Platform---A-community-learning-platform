@@ -1,8 +1,15 @@
 # Prodify-Productivity-Platform-A-community-learning-platform
 
 # Prodify
-<img width="1907" height="915" alt="image" src="https://github.com/user-attachments/assets/8b1224d0-3a89-4588-84de-dcea40a73583" />
+
 <img width="1909" height="903" alt="image" src="https://github.com/user-attachments/assets/8d9ecade-c535-4feb-96eb-efb00e0c879a" />
+<img width="1909" height="894" alt="image" src="https://github.com/user-attachments/assets/5d64d867-639d-46c4-8128-32d1b0742aea" />
+
+
+<img width="1020" height="637" alt="image" src="https://github.com/user-attachments/assets/a2752503-bcdf-43ef-8ac7-e985d1478ef4" />
+<img width="1900" height="717" alt="image" src="https://github.com/user-attachments/assets/04fee2ae-b86a-4985-abcc-a693712672ae" />
+<img width="1907" height="915" alt="image" src="https://github.com/user-attachments/assets/8b1224d0-3a89-4588-84de-dcea40a73583" />
+
 
 
 
