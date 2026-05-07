@@ -1,0 +1,16 @@
+env/
+venv/
+.env
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+prodify/db.sqlite3
+prodify/media/
+prodify/prodify/media/
+prodify/user_pdfs/
+prodify/staticfiles/
+
+.coverage
+htmlcov/

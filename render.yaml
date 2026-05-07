@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: prodify
+    runtime: python
+    plan: free
+    rootDir: prodify
+    buildCommand: bash build.sh
+    startCommand: gunicorn prodify.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: .onrender.com
+      - key: SECRET_KEY
+        generateValue: true
