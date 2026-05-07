@@ -3,8 +3,7 @@ services:
     name: prodify
     runtime: python
     plan: free
-    rootDir: prodify/prodify
-    buildCommand: bash build.sh
+    buildCommand: bash prodify/build.sh
     startCommand: gunicorn prodify.wsgi:application
     envVars:
       - key: DEBUG
